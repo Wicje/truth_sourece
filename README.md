@@ -4,11 +4,11 @@ Forces your AI agent to search **only authentic, non-muddled sources** with trus
 
 Cloned from: https://github.com/Wicje/truth_sourece.git
 
-## What it does (v0.2.0)
+## What it does (v0.3.0)
 
 Exposes 4 MCP tools your agent MUST use instead of raw web:
 
-1. `search_authentic(query)` — Wikipedia + OpenAlex + Semantic Scholar + Crossref + PubMed (+ optional arXiv/Tavily/Brave), ranked by trust, de-duped, cached 1h. Returns text + structured JSON with Tier, trust score, why-trusted, URLs.
+1. `search_authentic(query)` — Wikipedia + OpenAlex + Semantic Scholar + Crossref + PubMed + Google FactCheck (+ optional arXiv/Tavily/Brave), ranked by trust, de-duped, cached 1h. Returns text + structured JSON with Tier, trust score, why-trusted, URLs.
 2. `verify_claim(claim)` — cross-checks across 2+ **independent hosts**. Requires 2 Tier-1 hosts for `verified`. Optionally fetches pages for verbatim quotes.
 3. `source_trust(url)` — exact-host allowlist check (no more `x.com` ⊂ `linux.com` bugs). Blogs/social/SEO farms → NOT TRUSTED.
 4. `fetch_evidence(url, query)` — fetches a trusted page, extracts verbatim quotes. Refuses untrusted URLs.
@@ -16,7 +16,7 @@ Exposes 4 MCP tools your agent MUST use instead of raw web:
 Trust tiers:
 - Tier 1 (95-100): `.gov`, WHO, UN, NIH, CDC, FDA, EPA, Nature/Science/NEJM/Lancet/BMJ/JAMA/PLOS, PubMed, clinicaltrials, OECD/WorldBank/IMF, ISO/IETF/W3C
 - Tier 2 (80-94): `.edu`, Wikipedia (starter only), Britannica, arXiv (flagged preprint), DOI, Semantic Scholar, official docs
-- Tier 3 (65-79): AP, Reuters, BBC, Snopes/FactCheck/PolitiFact — corroboration only
+- Tier 3 (65-79): AP, Reuters, BBC, Google FactCheck, Snopes/FactCheck/PolitiFact — corroboration only
 - Blocked: facebook/instagram/tiktok/twitter/x/reddit/quora/medium/linkedin/youtube UGC — never citable
 
 Rule enforced in prompts: **2x independent Tier-1 hosts to state as fact. Wikipedia alone is never sufficient.**
@@ -27,16 +27,38 @@ Rule enforced in prompts: **2x independent Tier-1 hosts to state as fact. Wikipe
 npm install
 npm run build
 npm start
-npm test   # vitest: matching, verdict, cache, quotes
+npm test   # vitest: matching, verdict, cache, quotes, config
 ```
 
-Optional (broader web, still allowlist-filtered):
+Optional keys (all allowlist-filtered, server works without them):
 ```bash
 cp .env.example .env
-# add TAVILY_API_KEY and/or BRAVE_API_KEY + CONTACT_EMAIL (+ NCBI_API_KEY for PubMed)
+# TAVILY_API_KEY / BRAVE_API_KEY (web) + FACTCHECK_API_KEY (Google FactCheck)
+# CONTACT_EMAIL (Crossref/OpenAlex/NCBI politeness) + NCBI_API_KEY (PubMed limits)
 ```
 
-Live-tested: `malaria vaccine efficacy` → PubMed Tier-1 hits with trust 99.
+## No-code allowlist: sources.yaml
+
+Edit `sources.yaml` to add/remove trusted domains — no code change, no rebuild of logic:
+
+```yaml
+rules:
+  - { match: your-health-agency.gov, tier: 1, baseScore: 98, category: official, reason: "National health authority" }
+blockedHosts:
+  - noisy-blog.com
+```
+
+Point elsewhere with `SOURCES_CONFIG=/path/to/custom.yaml`. Invalid entries are ignored; missing file falls back to built-ins.
+
+## Docker
+
+```bash
+docker build -t truth-source .
+docker run -i --rm --env-file .env truth-source
+# MCP stdio: attach your agent to the container's stdin/stdout
+```
+
+CI (`.github/workflows/ci.yml`) runs typecheck + build + tests on every push/PR.
 
 ## Connect to your agent
 
@@ -78,7 +100,10 @@ Prefer responses with quotes from fetch_evidence. Always list citations with URL
 ## Project layout
 
 - `src/index.ts` — MCP server + 4 tools, structured output
-- `src/sources.ts` — curated allowlist / blocklist (exact-host matching)
-- `src/providers.ts` — Wikipedia, OpenAlex, Semantic Scholar, Crossref, PubMed, arXiv, Tavily, Brave + cache + quotes
+- `src/sources.ts` — built-in allowlist/blocklist + exact-host matching (overridden by `sources.yaml`)
+- `src/config.ts` — `sources.yaml` loader with validation + fallback
+- `sources.yaml` — editable allowlist, no code changes needed
+- `src/providers.ts` — Wikipedia, OpenAlex, Semantic Scholar, Crossref, PubMed, FactCheck, arXiv, Tavily, Brave + cache + quotes
 - `src/trust.ts` — scoring, independent-host corroboration, verdicts
-- `tests/` — vitest regression tests for matching, verdicts, cache, quotes
+- `tests/` — vitest regression tests for matching, verdicts, cache, quotes, config
+- `Dockerfile` + `.github/workflows/ci.yml` — container + CI

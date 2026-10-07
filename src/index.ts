@@ -7,7 +7,7 @@ import { fetchEvidenceQuote, sanitizeQuery, searchAuthentic } from "./providers.
 import { getSourceTrust } from "./sources.js";
 import { verdictFor } from "./trust.js";
 
-const server = new McpServer({ name: "truth_source", version: "0.2.0" }, { capabilities: { tools: {} } });
+const server = new McpServer({ name: "truth_source", version: "0.3.0" }, { capabilities: { tools: {} } });
 
 function evidencePayload(r: { title: string; url: string; snippet: string; source: string; trustScore: number; tier: number; trustReason: string; citations?: number; year?: number; quote?: string }) {
   return {
@@ -123,7 +123,7 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[truth_source] MCP server v0.2.0 on stdio — tools: search_authentic, verify_claim, source_trust, fetch_evidence");
+  console.error("[truth_source] MCP server v0.3.0 on stdio — tools: search_authentic, verify_claim, source_trust, fetch_evidence");
 }
 
 main().catch((err) => {

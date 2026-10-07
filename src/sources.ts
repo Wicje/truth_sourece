@@ -5,8 +5,10 @@
  *  1 (95-100): peer-reviewed + primary official (.gov, WHO, UN, standards)
  *  2 (80-94):  .edu, encyclopedic, reputable scholarly publishers, official docs
  *  3 (65-79):  wire / reputable press + established fact-checkers (corroboration only)
- *  blocked:    social, forums, content farms — never returned as evidence
+ * blocked:    social, forums, content farms — never returned as evidence
  */
+
+import { loadSourcesConfig } from "./config.js";
 
 export type Tier = 1 | 2 | 3;
 
@@ -69,7 +71,8 @@ export const SOURCE_RULES: SourceRule[] = [
   { match: "politifact.com", tier: 3, baseScore: 71, category: "fact-check", reason: "Fact-checker — US politics focus" },
 ];
 
-/** Host-only blocklist (exact host or subdomain). Path-based UGC handled in isBlocked. */
+/** Host-only blocklist (exact host or subdomain). Path-based UGC handled in isBlocked.
+ * Built-in defaults — overridden by sources.yaml when present (see config.ts). */
 const BLOCKED_HOSTS = [
   "facebook.com",
   "instagram.com",
@@ -124,7 +127,7 @@ export function isBlocked(url: string): boolean {
   }
   const host = u.hostname.toLowerCase().replace(/\.$/, "");
   const path = u.pathname.toLowerCase();
-  if (BLOCKED_HOSTS.some((b) => hostMatches(host, b))) return true;
+  if (activeBlockedHosts().some((b) => hostMatches(host, b))) return true;
   if (hostMatches(host, "youtube.com") || hostMatches(host, "youtu.be")) {
     // Allow official channel pages, block watch/shorts UGC video URLs as evidence
     if (path.startsWith("/watch") || path.startsWith("/shorts") || path.startsWith("/live")) return true;
@@ -140,7 +143,7 @@ export function getSourceTrust(url: string): TrustVerdict {
     return { trusted: false, score: 0, tier: 0, category: "blocked", reason: "Social/forum/UGC — not citable as fact" };
 
   let best: SourceRule | null = null;
-  for (const r of SOURCE_RULES) {
+  for (const r of activeRules()) {
     if (hostMatches(host, r.match)) {
       if (!best || r.baseScore > best.baseScore) best = r;
     }
@@ -150,4 +153,13 @@ export function getSourceTrust(url: string): TrustVerdict {
   }
   // Unknown domain: untrusted by default — agent must not cite it as fact
   return { trusted: false, score: 20, tier: 0, category: "unknown", reason: "Not on authentic-source allowlist — do not cite as fact" };
+}
+
+/** Active rules: sources.yaml wins when present, else built-in SOURCE_RULES. */
+export function activeRules(): SourceRule[] {
+  return loadSourcesConfig()?.rules ?? SOURCE_RULES;
+}
+
+export function activeBlockedHosts(): string[] {
+  return loadSourcesConfig()?.blockedHosts ?? BLOCKED_HOSTS;
 }

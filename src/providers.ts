@@ -8,7 +8,7 @@ import { getSourceTrust } from "./sources.js";
 
 function userAgent(): string {
   const mail = process.env.CONTACT_EMAIL?.trim();
-  return mail ? `truth_source-mcp/0.2.0 (mailto:${mail})` : "truth_source-mcp/0.2.0";
+  return mail ? `truth_source-mcp/0.3.0 (mailto:${mail})` : "truth_source-mcp/0.3.0";
 }
 
 /** Sanitize agent input: trim, collapse whitespace, cap length. */
@@ -290,6 +290,41 @@ export async function searchBrave(query: string, limit = 5): Promise<Evidence[]>
   }
 }
 
+/** Google Fact Check Tools API (needs FACTCHECK_API_KEY). Returns Tier-3 debunks/confirmations. */
+export async function searchFactCheck(query: string, limit = 5): Promise<Evidence[]> {
+  const key = process.env.FACTCHECK_API_KEY?.trim();
+  if (!key) return [];
+  try {
+    const params = new URLSearchParams({ query, key, pageSize: String(Math.min(10, Math.max(1, limit))) });
+    const data = await getJson(`https://factchecktools.googleapis.com/v1alpha1/claims:search?${params.toString()}`);
+    const claims: any[] = data?.claims ?? [];
+    const out: Evidence[] = [];
+    for (const c of claims) {
+      const reviews: any[] = c?.claimReview ?? [];
+      for (const r of reviews) {
+        const pageUrl: string = r?.url ?? "";
+        if (!pageUrl) continue;
+        const s = scoreEvidence(pageUrl);
+        const publisher = r?.publisher?.name ?? r?.publisher?.site ?? "fact-checker";
+        out.push({
+          title: String(r?.title ?? c?.text ?? "Fact check").slice(0, 200),
+          url: pageUrl,
+          snippet: `Claim: ${String(c?.text ?? "").slice(0, 200)} — ${publisher}: ${String(r?.textualRating ?? "").slice(0, 120)}`.slice(0, 400),
+          source: "factcheck",
+          trustScore: s.score,
+          tier: s.tier,
+          trustReason: s.reason,
+        });
+        if (out.length >= limit) break;
+      }
+      if (out.length >= limit) break;
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 /** Extract up to 2 verbatim quotes from a page containing query keywords. */
 export function extractQuotes(html: string, query: string, maxQuotes = 2): string[] {
   const text = html
@@ -348,6 +383,7 @@ export async function searchAuthentic(query: string, opts: SearchOptions = {}): 
     searchSemanticScholar(clean, 3),
     searchCrossref(clean, 3),
     searchPubMed(clean, 3),
+    searchFactCheck(clean, 3),
     searchTavily(clean, 3),
     searchBrave(clean, 3),
   ];
