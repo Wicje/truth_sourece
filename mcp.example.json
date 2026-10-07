@@ -1,0 +1,9 @@
+{
+  "mcp": {
+    "truth_source": {
+      "type": "local",
+      "command": ["node", "C:\\Users\\Vathos\\truth_sourece\\dist\\index.js"],
+      "enabled": true
+    }
+  }
+}
