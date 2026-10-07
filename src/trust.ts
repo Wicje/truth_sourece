@@ -4,12 +4,26 @@ export interface Evidence {
   title: string;
   url: string;
   snippet: string;
-  source: string; // provider: wikipedia | openalex | crossref | pubmed | arxiv | tavily | brave
+  source: string; // provider: wikipedia | openalex | crossref | pubmed | arxiv | semanticscholar | tavily | brave
   trustScore: number;
   tier: number;
   trustReason: string;
   citations?: number;
   year?: number;
+  quote?: string; // verbatim quote extracted from the source page (when available)
+}
+
+export function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/\.$/, "");
+  } catch {
+    return url;
+  }
+}
+
+/** Distinct independent hosts at Tier 1 (two URLs on one host count once). */
+export function independentTier1Hosts(evidences: Evidence[]): Set<string> {
+  return new Set(evidences.filter((e) => e.tier === 1).map((e) => hostOf(e.url)));
 }
 
 export function scoreEvidence(url: string, citations = 0, year?: number): { score: number; tier: number; reason: string } {
@@ -25,11 +39,9 @@ export function scoreEvidence(url: string, citations = 0, year?: number): { scor
   return { score, tier: t.tier, reason: t.reason };
 }
 
-/** Corroboration: +8 if 2+ independent Tier-1 sources agree, +4 for Tier1+Tier2 mix. */
+/** Corroboration: +8 if 2+ independent Tier-1 hosts agree, +4 for Tier1+Tier2 mix. */
 export function corroborationBonus(evidences: Evidence[]): number {
-  const t1Hosts = new Set(
-    evidences.filter((e) => e.tier === 1).map((e) => { try { return new URL(e.url).hostname; } catch { return e.url; } })
-  );
+  const t1Hosts = independentTier1Hosts(evidences);
   const hasT2 = evidences.some((e) => e.tier === 2);
   if (t1Hosts.size >= 2) return 8;
   if (t1Hosts.size >= 1 && hasT2) return 4;
@@ -44,11 +56,16 @@ export function verdictFor(evidences: Evidence[]): { verdict: Verdict; confidenc
     return { verdict: "unverified", confidence: 10, explanation: "No authentic (Tier 1/2/3) source found. Do not state as fact." };
   const bonus = corroborationBonus(trusted);
   const top = Math.max(...trusted.map((e) => e.trustScore)) + bonus;
-  const t1Count = new Set(trusted.filter((e) => e.tier === 1).map((e) => e.url)).size;
+  const t1Hosts = independentTier1Hosts(trusted);
+  const quoted = trusted.filter((e) => e.quote && e.quote.length > 40).length;
 
-  if ((t1Count >= 2 && top >= 90) || top >= 98)
-    return { verdict: "verified", confidence: Math.min(95, top), explanation: `${t1Count} independent Tier-1 sources corroborate. Citable as fact with citations.` };
-  if (t1Count >= 1 || top >= 80)
-    return { verdict: "partially-supported", confidence: Math.min(80, top), explanation: "Supported by at least one authentic source but needs a second independent Tier-1 source for full verification." };
+  if ((t1Hosts.size >= 2 && top >= 90) || top >= 98)
+    return {
+      verdict: "verified",
+      confidence: Math.min(95, top),
+      explanation: `${t1Hosts.size} independent Tier-1 hosts corroborate${quoted > 0 ? ` (${quoted} with direct quotes)` : ""}. Citable as fact with citations.`,
+    };
+  if (t1Hosts.size >= 1 || top >= 80)
+    return { verdict: "partially-supported", confidence: Math.min(80, top), explanation: "Supported by at least one authentic source but needs a second independent Tier-1 host for full verification." };
   return { verdict: "disputed", confidence: 40, explanation: "Only weak/secondary sources found. Treat as disputed; find Tier-1 primary source." };
 }
