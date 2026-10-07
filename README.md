@@ -64,6 +64,19 @@ docker run -i --rm --env-file .env truth-source
 
 CI (`.github/workflows/ci.yml`) runs typecheck + build + tests on every push/PR.
 
+## Known limitations
+
+- **Trust-first ranking:** results sort by trust score, not query relevance, so a
+  high-trust but off-topic hit (e.g. a PubMed paper matching one keyword) can rank
+  above a more relevant Tier-2 source. Mitigation: `verify_claim(withQuotes=true)`
+  and `fetch_evidence` confirm the claim actually appears in the cited page —
+  always require quotes for strong claims. Relevance-weighted re-ranking is planned.
+- **Live APIs vary:** `npm run eval:live` depends on third-party search APIs, so
+  pass rates fluctuate with the network. The CI-gated suite (`tests/`, 39 cases)
+  is fully deterministic and offline.
+- **Preprints are opt-in:** arXiv results are excluded unless `includePreprints=true`,
+  and are always flagged `[PREPRINT — verify peer-reviewed version]`.
+
 ## Eval harness
 
 - `tests/eval.test.ts` — 20 deterministic verdict cases (CI-gated): independence,
