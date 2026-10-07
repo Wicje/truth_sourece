@@ -1,0 +1,22 @@
+[
+  { "claim": "The Eiffel Tower is in Paris", "expect": ["verified", "partially-supported"] },
+  { "claim": "Water boils at 100 degrees Celsius at sea level", "expect": ["verified", "partially-supported"] },
+  { "claim": "Malaria is caused by Plasmodium parasites", "expect": ["verified", "partially-supported"] },
+  { "claim": "The WHO declared COVID-19 a pandemic in March 2020", "expect": ["verified", "partially-supported"] },
+  { "claim": "The speed of light in vacuum is approximately 299792 kilometers per second", "expect": ["verified", "partially-supported"] },
+  { "claim": "Penicillin was discovered by Alexander Fleming", "expect": ["verified", "partially-supported"] },
+  { "claim": "DNA has a double-helix structure", "expect": ["verified", "partially-supported"] },
+  { "claim": "The Earth orbits the Sun", "expect": ["verified", "partially-supported"] },
+  { "claim": "Humans have 23 pairs of chromosomes", "expect": ["verified", "partially-supported"] },
+  { "claim": "The International System of Units defines the metre using the speed of light", "expect": ["verified", "partially-supported"] },
+  { "claim": "The Eiffel Tower is in Berlin", "expect": ["disputed", "unverified"] },
+  { "claim": "Water boils at 50 degrees Celsius at sea level", "expect": ["disputed", "unverified"] },
+  { "claim": "The Moon is made of cheese", "expect": ["disputed", "unverified"] },
+  { "claim": "Vitamin C cures all cancers", "expect": ["disputed", "unverified", "partially-supported"] },
+  { "claim": "The Earth is flat", "expect": ["disputed", "unverified"] },
+  { "claim": "Vaccines contain microchips for tracking people", "expect": ["disputed", "unverified"] },
+  { "claim": "Drinking bleach cures infections", "expect": ["disputed", "unverified"] },
+  { "claim": "The Sun orbits the Earth", "expect": ["disputed", "unverified"] },
+  { "claim": "Humans can breathe underwater without any equipment", "expect": ["disputed", "unverified"] },
+  { "claim": "Humans have 12 pairs of chromosomes", "expect": ["disputed", "unverified"] }
+]

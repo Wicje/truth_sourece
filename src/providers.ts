@@ -5,10 +5,11 @@
 import "dotenv/config";
 import { scoreEvidence, type Evidence } from "./trust.js";
 import { getSourceTrust } from "./sources.js";
+import { throttledFetch } from "./throttle.js";
 
 function userAgent(): string {
   const mail = process.env.CONTACT_EMAIL?.trim();
-  return mail ? `truth_source-mcp/0.3.0 (mailto:${mail})` : "truth_source-mcp/0.3.0";
+  return mail ? `truth_source-mcp/0.4.0 (mailto:${mail})` : "truth_source-mcp/0.4.0";
 }
 
 /** Sanitize agent input: trim, collapse whitespace, cap length. */
@@ -51,27 +52,13 @@ export function cacheStats(): { size: number } {
 }
 
 async function getJson(url: string, init?: RequestInit, timeoutMs = 12000): Promise<any> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...init, headers: { "User-Agent": userAgent(), ...(init?.headers ?? {}) }, signal: ctrl.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    return await res.json();
-  } finally {
-    clearTimeout(t);
-  }
+  const res = await throttledFetch(url, { ...init, headers: { "User-Agent": userAgent(), ...(init?.headers ?? {}) } }, timeoutMs);
+  return await res.json();
 }
 
 async function getText(url: string, timeoutMs = 12000): Promise<string> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { headers: { "User-Agent": userAgent() }, signal: ctrl.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    return await res.text();
-  } finally {
-    clearTimeout(t);
-  }
+  const res = await throttledFetch(url, { headers: { "User-Agent": userAgent() } }, timeoutMs);
+  return await res.text();
 }
 
 function crossrefUrl(query: string, limit: number): string {

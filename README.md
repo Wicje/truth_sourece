@@ -4,7 +4,7 @@ Forces your AI agent to search **only authentic, non-muddled sources** with trus
 
 Cloned from: https://github.com/Wicje/truth_sourece.git
 
-## What it does (v0.3.0)
+## What it does (v0.4.0)
 
 Exposes 4 MCP tools your agent MUST use instead of raw web:
 
@@ -27,8 +27,12 @@ Rule enforced in prompts: **2x independent Tier-1 hosts to state as fact. Wikipe
 npm install
 npm run build
 npm start
-npm test   # vitest: matching, verdict, cache, quotes, config
+npm test   # vitest: matching, verdict, cache, quotes, config, throttle, eval matrix
 ```
+
+Politeness: all HTTP goes through a per-host scheduler (`src/throttle.ts`) — same-host
+requests are spaced (`THROTTLE_DEFAULT_MS`, NCBI 400ms without key / 120ms with key),
+429/5xx responses retry with backoff. Different hosts run in parallel.
 
 Optional keys (all allowlist-filtered, server works without them):
 ```bash
@@ -59,6 +63,17 @@ docker run -i --rm --env-file .env truth-source
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck + build + tests on every push/PR.
+
+## Eval harness
+
+- `tests/eval.test.ts` — 20 deterministic verdict cases (CI-gated): independence,
+  quote handling, citation/recency scoring, tier boundaries.
+- `evals/claims.json` + `npm run eval:live` — 20 real-world claims (10 true, 10 false)
+  scored against live APIs. Manual use (network-dependent, not CI-gated):
+  ```bash
+  npm run eval:live          # human-readable table, exits 1 below 70% pass rate
+  npm run eval:live -- --json --threshold 0.8
+  ```
 
 ## Connect to your agent
 
@@ -104,6 +119,8 @@ Prefer responses with quotes from fetch_evidence. Always list citations with URL
 - `src/config.ts` — `sources.yaml` loader with validation + fallback
 - `sources.yaml` — editable allowlist, no code changes needed
 - `src/providers.ts` — Wikipedia, OpenAlex, Semantic Scholar, Crossref, PubMed, FactCheck, arXiv, Tavily, Brave + cache + quotes
+- `src/throttle.ts` — per-host spacing + 429/5xx retry with backoff
 - `src/trust.ts` — scoring, independent-host corroboration, verdicts
-- `tests/` — vitest regression tests for matching, verdicts, cache, quotes, config
+- `tests/` — vitest regression tests for matching, verdicts, cache, quotes, config, throttle, eval matrix
+- `evals/claims.json` + `evals/run.ts` — live eval set + runner (`npm run eval:live`)
 - `Dockerfile` + `.github/workflows/ci.yml` — container + CI
